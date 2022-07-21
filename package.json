@@ -1,0 +1,26 @@
+{
+  "name": "@brillout/eject",
+  "version": "0.0.0",
+  "scripts": {
+    "// === Dev ===": "",
+    "dev": "tsc --watch",
+    "// === Build ===": "",
+    "build": "rm -rf dist/ && tsc",
+    "// === Release ===": "",
+    "prepublishOnly": "pnpm run build",
+    "release": "npm version patch && npm publish && git push && git push --tags"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^4.8.2"
+  },
+  "bin": "./bin.js",
+  "files": [
+    "dist/"
+  ],
+  "repository": "github:brillout/eject",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  }
+}
