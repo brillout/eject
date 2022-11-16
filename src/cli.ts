@@ -3,7 +3,7 @@ import { import_ } from '@brillout/import'
 import { assert, assertUsage, toPosixPath } from './utils'
 import { projectInfo } from './utils/projectInfo'
 
-eject()
+main()
 
 type Action =
   | {
@@ -30,13 +30,36 @@ type Ejectable = {
   actions: Action[]
 }
 
-async function eject() {
+async function main() {
   const ejectables = await findEjectables()
-  const { ejectStemPackageName, ejectName } = getCliArgs()
-  if (!ejectStemPackageName) {
+
+  const { stemPackageName, ejectName } = getCliArgs()
+  if (!stemPackageName) {
     showHelp(ejectables)
     return
   }
+
+  const ejectable = findMatch(ejectables, stemPackageName, ejectName)
+  if (!ejectable) {
+    showHelp(ejectables)
+    return
+  }
+
+  eject(ejectable)
+}
+
+function eject(ejectable: Ejectable) {
+  ejectable.actions.forEach((action) => {
+    console.log(action)
+  })
+}
+
+function findMatch(ejectables: Ejectable[], stemPackageName: string, ejectName: string | null): null | Ejectable {
+  const matches = ejectables.filter(
+    (ejectable) => ejectable.stemPackageName === stemPackageName && ejectable.ejectName === ejectName
+  )
+  assert(matches.length <= 1)
+  return matches[0] ?? null
 }
 
 function showHelp(ejectables: Ejectable[]) {
@@ -56,11 +79,11 @@ function showHelp(ejectables: Ejectable[]) {
   console.log('(Or `$ pnpm execute eject` and `$ yarn eject` instead of `$ npx eject`)')
 }
 
-function getCliArgs(): { ejectStemPackageName: null | string; ejectName: null | string } {
+function getCliArgs(): { stemPackageName: null | string; ejectName: null | string } {
   const args = process.argv.slice(2)
-  const ejectStemPackageName = args[0] ?? null
+  const stemPackageName = args[0] ?? null
   const ejectName = args[1] ?? null
-  return { ejectStemPackageName, ejectName }
+  return { stemPackageName, ejectName }
 }
 
 async function findEjectables(): Promise<Ejectable[]> {
