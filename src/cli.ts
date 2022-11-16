@@ -11,7 +11,11 @@ main()
 // Adapter from: https://stackoverflow.com/questions/52086611/regex-for-matching-js-import-statements/69867053#69867053
 // Convert RegExp literal to RegExp constructor: https://regex101.com/ > "Code Generator"
 // const importRE = (importPath: string) => /import([ \n\t]*(?:[^ \n\t\{\}]+[ \n\t]*,?)?(?:[ \n\t]*\{(?:[ \n\t]*[^ \n\t"'\{\}]+[ \n\t]*,?)+\})?[ \n\t]*)from([ \n\t]*)(['"])([^'"\n]+)(['"])/g
-const getImportRE = (importPath: string) => new RegExp(`import([ \\n\\t]*(?:[^ \\n\\t\\{\\}]+[ \\n\\t]*,?)?(?:[ \\n\\t]*\\{(?:[ \\n\\t]*[^ \\n\\t"\'\\{\\}]+[ \\n\\t]*,?)+\\})?[ \\n\\t]*)from([ \\n\\t]*)([\'"])${importPath}([\'"])`, 'gm')
+const getImportRE = (importPath: string) =>
+  new RegExp(
+    `import([ \\n\\t]*(?:[^ \\n\\t\\{\\}]+[ \\n\\t]*,?)?(?:[ \\n\\t]*\\{(?:[ \\n\\t]*[^ \\n\\t"\'\\{\\}]+[ \\n\\t]*,?)+\\})?[ \\n\\t]*)from([ \\n\\t]*)([\'"])${importPath}([\'"])`,
+    'gm'
+  )
 
 type Action = ActionMoveSourceCode | ActionModifyImportPaths
 type ActionModifyImportPaths = {
@@ -60,15 +64,15 @@ async function eject(ejectable: Ejectable) {
   for (const action of ejectable.actions) {
     await applyAction(action, ejectable)
   }
-  // removeStemPackage(ejectable.stemPackageName)
+  removeStemPackage(ejectable.stemPackageName)
 }
 
 async function applyAction(action: Action, ejectable: Ejectable) {
   if ('moveSourceCode' in action) {
-    // moveSourceCode(action, ejectable)
+    moveSourceCode(action, ejectable)
   }
   if ('modifyImportPaths' in action) {
-    await modifyImportPaths(action, ejectable)
+    await modifyImportPaths(action)
   }
 }
 
@@ -77,8 +81,8 @@ function moveSourceCode(action: ActionMoveSourceCode, ejectable: Ejectable) {
   const dirTarget = path.join(process.cwd(), action.moveSourceCode)
   fse.copySync(dirSource, dirTarget, { overwrite: false })
 }
-async function modifyImportPaths(action: ActionModifyImportPaths, ejectable: Ejectable) {
-  const { stemPackageName } = ejectable;
+async function modifyImportPaths(action: ActionModifyImportPaths) {
+  const cwd = process.cwd()
   const { importPathOld, importPathNew } = action.modifyImportPaths
   const importRE = getImportRE(importPathOld)
   const files = await getUserFiles()
@@ -86,42 +90,20 @@ async function modifyImportPaths(action: ActionModifyImportPaths, ejectable: Eje
     if (!isScriptFile(filePath)) {
       return
     }
-    console.log(filePath)
     const fileContentOld = String(fs.readFileSync(filePath))
-    let fileContentNew = fileContentOld.replace(importRE, `import$1from$2$3${importPathNew}$4`)
-    if( fileContentNew !== fileContentOld ) {
-      console.log(fileContentNew)
+    assert(filePath.startsWith(cwd), { filePath, cwd })
+    const importPath = path.posix.relative(path.posix.dirname(filePath), path.posix.join(cwd, importPathNew))
+    let fileContentNew = fileContentOld.replace(importRE, `import$1from$2$3${importPath}$4`)
+    if (fileContentNew !== fileContentOld) {
+      fs.writeFileSync(filePath, fileContentNew)
     }
-      /*
-    const matches = [...filePath.matchAll(importRE)]
-    console.log(1)
-    for (const match of matches) {
-    console.log(2)
-      console.log(match)
-      console.log(match.index)
-    }
-    let match = importRE.exec(fileContentOld)
-    while (match != null) {
-      // matched text: match[0]
-      // match start: match.index
-      // capturing group n: match[n]
-      console.log('m4', match[4])
-      if( match[4] === importPathOld ) {
-        fileContentNew = fileContentNew.replace(importRE, `import$1from$2$3${importPathNew}$4`)
-        console.log('m', match)
-        console.log(fileContentNew)
-      }
-      match = importRE.exec(fileContentOld)
-    }
-    */
-    // fs.writeFileSync(filePath, fileContent)
   })
 }
 
 async function getUserFiles(): Promise<string[]> {
   const cwd = process.cwd()
   const stdout = await runCommand('git ls-files', { cwd })
-  const files = stdout.split('\n').map((filePathRelative) => path.join(cwd, filePathRelative))
+  const files = stdout.split('\n').map((filePathRelative) => toPosixPath(path.join(cwd, filePathRelative)))
   return files
 }
 
