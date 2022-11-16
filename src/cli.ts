@@ -10,8 +10,8 @@ main()
 // Regexes has false-positives which is alright.
 // Adapter from: https://stackoverflow.com/questions/52086611/regex-for-matching-js-import-statements/69867053#69867053
 // Convert RegExp literal to RegExp constructor: https://regex101.com/ > "Code Generator"
-// const importRE = (imporPath: string) => /import([ \n\t]*(?:[^ \n\t\{\}]+[ \n\t]*,?)?(?:[ \n\t]*\{(?:[ \n\t]*[^ \n\t"'\{\}]+[ \n\t]*,?)+\})?[ \n\t]*)from([ \n\t]*)(['"])([^'"\n]+)(['"])/g
- new RegExp('import([ \\n\\t]*(?:[^ \\n\\t\\{\\}]+[ \\n\\t]*,?)?(?:[ \\n\\t]*\\{(?:[ \\n\\t]*[^ \\n\\t"\'\\{\\}]+[ \\n\\t]*,?)+\\})?[ \\n\\t]*)from([ \\n\\t]*)([\'"])([^\'"\\n]+)([\'"])', 'gm')
+// const importRE = (importPath: string) => /import([ \n\t]*(?:[^ \n\t\{\}]+[ \n\t]*,?)?(?:[ \n\t]*\{(?:[ \n\t]*[^ \n\t"'\{\}]+[ \n\t]*,?)+\})?[ \n\t]*)from([ \n\t]*)(['"])([^'"\n]+)(['"])/g
+const getImportRE = (importPath: string) => new RegExp(`import([ \\n\\t]*(?:[^ \\n\\t\\{\\}]+[ \\n\\t]*,?)?(?:[ \\n\\t]*\\{(?:[ \\n\\t]*[^ \\n\\t"\'\\{\\}]+[ \\n\\t]*,?)+\\})?[ \\n\\t]*)from([ \\n\\t]*)([\'"])${importPath}([\'"])`, 'gm')
 
 type Action = ActionMoveSourceCode | ActionModifyImportPaths
 type ActionModifyImportPaths = {
@@ -80,6 +80,7 @@ function moveSourceCode(action: ActionMoveSourceCode, ejectable: Ejectable) {
 async function modifyImportPaths(action: ActionModifyImportPaths, ejectable: Ejectable) {
   const { stemPackageName } = ejectable;
   const { importPathOld, importPathNew } = action.modifyImportPaths
+  const importRE = getImportRE(importPathOld)
   const files = await getUserFiles()
   files.forEach((filePath) => {
     if (!isScriptFile(filePath)) {
@@ -87,7 +88,10 @@ async function modifyImportPaths(action: ActionModifyImportPaths, ejectable: Eje
     }
     console.log(filePath)
     const fileContentOld = String(fs.readFileSync(filePath))
-    let fileContentNew = fileContentOld
+    let fileContentNew = fileContentOld.replace(importRE, `import$1from$2$3${importPathNew}$4`)
+    if( fileContentNew !== fileContentOld ) {
+      console.log(fileContentNew)
+    }
       /*
     const matches = [...filePath.matchAll(importRE)]
     console.log(1)
@@ -96,7 +100,6 @@ async function modifyImportPaths(action: ActionModifyImportPaths, ejectable: Eje
       console.log(match)
       console.log(match.index)
     }
-    */
     let match = importRE.exec(fileContentOld)
     while (match != null) {
       // matched text: match[0]
@@ -104,12 +107,13 @@ async function modifyImportPaths(action: ActionModifyImportPaths, ejectable: Eje
       // capturing group n: match[n]
       console.log('m4', match[4])
       if( match[4] === importPathOld ) {
-        fileContentNew = fileContentNew.replace(importRE, `import$1from$2$3${importPathNew}$5`)
+        fileContentNew = fileContentNew.replace(importRE, `import$1from$2$3${importPathNew}$4`)
         console.log('m', match)
         console.log(fileContentNew)
       }
       match = importRE.exec(fileContentOld)
     }
+    */
     // fs.writeFileSync(filePath, fileContent)
   })
 }
