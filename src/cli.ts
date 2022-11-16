@@ -1,6 +1,7 @@
 import path from 'path'
 import { import_ } from '@brillout/import'
 import { assert, assertUsage, toPosixPath } from './utils'
+import { projectInfo } from './utils/projectInfo'
 
 eject()
 
@@ -30,11 +31,36 @@ type Ejectable = {
 }
 
 async function eject() {
-  //require('@brillout/stem-react')
-  //await import_('@brillout/stem-react')
-
   const ejectables = await findEjectables()
-  console.log(ejectables)
+  const { ejectStemPackageName, ejectName } = getCliArgs()
+  if (!ejectStemPackageName) {
+    showHelp(ejectables)
+    return
+  }
+}
+
+function showHelp(ejectables: Ejectable[]) {
+  const { projectName, projectVersion } = projectInfo
+  console.log(`${projectName}@${projectVersion}`)
+  console.log('')
+  console.log('Usage:')
+  ejectables.forEach((ejectable) => {
+    const { stemPackageName, ejectName } = ejectable
+    let cmd = `  $ npx eject ${stemPackageName}`
+    if (ejectName) {
+      cmd += ` ${ejectName}`
+    }
+    console.log(cmd)
+  })
+  console.log('')
+  console.log('(Or `$ pnpm execute eject` and `$ yarn eject` instead of `$ npx eject`)')
+}
+
+function getCliArgs(): { ejectStemPackageName: null | string; ejectName: null | string } {
+  const args = process.argv.slice(2)
+  const ejectStemPackageName = args[0] ?? null
+  const ejectName = args[1] ?? null
+  return { ejectStemPackageName, ejectName }
 }
 
 async function findEjectables(): Promise<Ejectable[]> {
