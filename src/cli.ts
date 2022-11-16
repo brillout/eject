@@ -1,14 +1,17 @@
-main()
-
 import path from 'path'
 import { import_ } from '@brillout/import'
-import { assert, assertUsage, runCommand, toPosixPath } from './utils'
+import { assert, assertUsage, isScriptFile, runCommand, toPosixPath } from './utils'
 import { projectInfo } from './utils/projectInfo'
 import fse from 'fs-extra'
 import fs from 'fs'
 
-// The regexes won't match in some exotic cases, but false-negatives are alright
-const importRE = /\bimport\s*("[^"]*[^\\]"|'[^']*[^\\]');*/g
+main()
+
+// Regexes has false-positives which is alright.
+// Adapter from: https://stackoverflow.com/questions/52086611/regex-for-matching-js-import-statements/69867053#69867053
+// Convert RegExp literal to RegExp constructor: https://regex101.com/ > "Code Generator"
+// const importRE = (imporPath: string) => /import([ \n\t]*(?:[^ \n\t\{\}]+[ \n\t]*,?)?(?:[ \n\t]*\{(?:[ \n\t]*[^ \n\t"'\{\}]+[ \n\t]*,?)+\})?[ \n\t]*)from([ \n\t]*)(['"])([^'"\n]+)(['"])/g
+ new RegExp('import([ \\n\\t]*(?:[^ \\n\\t\\{\\}]+[ \\n\\t]*,?)?(?:[ \\n\\t]*\\{(?:[ \\n\\t]*[^ \\n\\t"\'\\{\\}]+[ \\n\\t]*,?)+\\})?[ \\n\\t]*)from([ \\n\\t]*)([\'"])([^\'"\\n]+)([\'"])', 'gm')
 
 type Action = ActionMoveSourceCode | ActionModifyImportPaths
 type ActionModifyImportPaths = {
@@ -57,12 +60,12 @@ async function eject(ejectable: Ejectable) {
   for (const action of ejectable.actions) {
     await applyAction(action, ejectable)
   }
-  removeStemPackage(ejectable.stemPackageName)
+  // removeStemPackage(ejectable.stemPackageName)
 }
 
 async function applyAction(action: Action, ejectable: Ejectable) {
   if ('moveSourceCode' in action) {
-    moveSourceCode(action, ejectable)
+    // moveSourceCode(action, ejectable)
   }
   if ('modifyImportPaths' in action) {
     await modifyImportPaths(action, ejectable)
@@ -75,10 +78,39 @@ function moveSourceCode(action: ActionMoveSourceCode, ejectable: Ejectable) {
   fse.copySync(dirSource, dirTarget, { overwrite: false })
 }
 async function modifyImportPaths(action: ActionModifyImportPaths, ejectable: Ejectable) {
+  const { stemPackageName } = ejectable;
+  const { importPathOld, importPathNew } = action.modifyImportPaths
   const files = await getUserFiles()
-  files.forEach(filePath => {
+  files.forEach((filePath) => {
+    if (!isScriptFile(filePath)) {
+      return
+    }
     console.log(filePath)
-    console.log(filePath.match(importRE))
+    const fileContentOld = String(fs.readFileSync(filePath))
+    let fileContentNew = fileContentOld
+      /*
+    const matches = [...filePath.matchAll(importRE)]
+    console.log(1)
+    for (const match of matches) {
+    console.log(2)
+      console.log(match)
+      console.log(match.index)
+    }
+    */
+    let match = importRE.exec(fileContentOld)
+    while (match != null) {
+      // matched text: match[0]
+      // match start: match.index
+      // capturing group n: match[n]
+      console.log('m4', match[4])
+      if( match[4] === importPathOld ) {
+        fileContentNew = fileContentNew.replace(importRE, `import$1from$2$3${importPathNew}$5`)
+        console.log('m', match)
+        console.log(fileContentNew)
+      }
+      match = importRE.exec(fileContentOld)
+    }
+    // fs.writeFileSync(filePath, fileContent)
   })
 }
 
@@ -94,10 +126,10 @@ function removeStemPackage(stemPackageName: string) {
   assert(Object.keys(pkgJson.dependencies!).includes(stemPackageName))
   const { pkgPath } = getUserPackageJsonPath()
   let fileContent = String(fs.readFileSync(pkgPath))
-  // Hacky but needed to perserve formating
+  // Hacky but needed if we want to perserve formating
   fileContent = fileContent
     .split('\n')
-    .filter((line) => !line.includes(stemPackageName))
+    .filter((line) => !line.includes(`"${stemPackageName}": "`))
     .join('\n')
   fs.writeFileSync(pkgPath, fileContent)
 }
