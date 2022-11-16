@@ -1,4 +1,4 @@
-const PROJECT_VERSION = '0.0.1'
+const PROJECT_VERSION = '0.0.2'
 
 export const projectInfo = {
   projectName: '@brillout/eject' as const,
