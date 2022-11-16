@@ -1,20 +1,25 @@
-import path from 'path'
-import { import_ } from '@brillout/import'
-import { assert, assertUsage, toPosixPath } from './utils'
-import { projectInfo } from './utils/projectInfo'
-
 main()
 
-type Action =
-  | {
-      moveSourceCode: string
-    }
-  | {
-      modifyImportPaths: {
-        importPathOld: string
-        importPathNew: string
-      }
-    }
+import path from 'path'
+import { import_ } from '@brillout/import'
+import { assert, assertUsage, runCommand, toPosixPath } from './utils'
+import { projectInfo } from './utils/projectInfo'
+import fse from 'fs-extra'
+import fs from 'fs'
+
+// The regexes won't match in some exotic cases, but false-negatives are alright
+const importRE = /\bimport\s*("[^"]*[^\\]"|'[^']*[^\\]');*/g
+
+type Action = ActionMoveSourceCode | ActionModifyImportPaths
+type ActionModifyImportPaths = {
+  modifyImportPaths: {
+    importPathOld: string
+    importPathNew: string
+  }
+}
+type ActionMoveSourceCode = {
+  moveSourceCode: string
+}
 
 type EjectConfig = {
   ejectables: {
@@ -45,13 +50,56 @@ async function main() {
     return
   }
 
-  eject(ejectable)
+  await eject(ejectable)
 }
 
-function eject(ejectable: Ejectable) {
-  ejectable.actions.forEach((action) => {
-    console.log(action)
+async function eject(ejectable: Ejectable) {
+  for (const action of ejectable.actions) {
+    await applyAction(action, ejectable)
+  }
+  removeStemPackage(ejectable.stemPackageName)
+}
+
+async function applyAction(action: Action, ejectable: Ejectable) {
+  if ('moveSourceCode' in action) {
+    moveSourceCode(action, ejectable)
+  }
+  if ('modifyImportPaths' in action) {
+    await modifyImportPaths(action, ejectable)
+  }
+}
+
+function moveSourceCode(action: ActionMoveSourceCode, ejectable: Ejectable) {
+  const dirSource = path.join(ejectable.stemPackageRootDir, action.moveSourceCode)
+  const dirTarget = path.join(process.cwd(), action.moveSourceCode)
+  fse.copySync(dirSource, dirTarget, { overwrite: false })
+}
+async function modifyImportPaths(action: ActionModifyImportPaths, ejectable: Ejectable) {
+  const files = await getUserFiles()
+  files.forEach(filePath => {
+    console.log(filePath)
+    console.log(filePath.match(importRE))
   })
+}
+
+async function getUserFiles(): Promise<string[]> {
+  const cwd = process.cwd()
+  const stdout = await runCommand('git ls-files', { cwd })
+  const files = stdout.split('\n').map((filePathRelative) => path.join(cwd, filePathRelative))
+  return files
+}
+
+function removeStemPackage(stemPackageName: string) {
+  const pkgJson = getUserPackageJson()
+  assert(Object.keys(pkgJson.dependencies!).includes(stemPackageName))
+  const { pkgPath } = getUserPackageJsonPath()
+  let fileContent = String(fs.readFileSync(pkgPath))
+  // Hacky but needed to perserve formating
+  fileContent = fileContent
+    .split('\n')
+    .filter((line) => !line.includes(stemPackageName))
+    .join('\n')
+  fs.writeFileSync(pkgPath, fileContent)
 }
 
 function findMatch(ejectables: Ejectable[], stemPackageName: string, ejectName: string | null): null | Ejectable {
@@ -155,9 +203,7 @@ function getStemPackages(pkgJson: UserPackageJson) {
 type UserPackageJson = { dependencies?: Record<string, string> }
 
 function getUserPackageJson(): UserPackageJson {
-  const cwd = process.cwd()
-
-  const pkgPath = `${cwd}/package.json`
+  const { cwd, pkgPath } = getUserPackageJsonPath()
   let pkgJson: UserPackageJson
   try {
     pkgJson = require(pkgPath)
@@ -165,4 +211,10 @@ function getUserPackageJson(): UserPackageJson {
     throw new Error(`No package.json found at ${cwd}`)
   }
   return pkgJson
+}
+
+function getUserPackageJsonPath(): { pkgPath: string; cwd: string } {
+  const cwd = process.cwd()
+  const pkgPath = `${cwd}/package.json`
+  return { cwd, pkgPath }
 }
