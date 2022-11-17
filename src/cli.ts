@@ -4,6 +4,7 @@ import { projectInfo } from './utils/projectInfo'
 import fse from 'fs-extra'
 import fs from 'fs'
 import { getStemPackages, type StemPackage } from './stemUtils'
+import pc from 'picocolors'
 
 const userRootDir = process.cwd()
 
@@ -60,6 +61,8 @@ async function main() {
     return
   }
 
+  await abortIfGitUncommitedChanges()
+
   await eject(ejectable)
 }
 
@@ -68,6 +71,21 @@ async function eject(ejectable: Ejectable) {
     await applyAction(action, ejectable)
   }
   removeStemPackage(ejectable.stemPackageName)
+}
+
+async function abortIfGitUncommitedChanges() {
+  const stdout = await runCommand(`git status --porcelain`, { cwd: userRootDir })
+  assert(stdout !== null)
+  const isDirty = stdout !== ''
+  if (isDirty) {
+    throw new Error(
+      pc.red(
+        pc.bold(
+          `Cannot eject: your Git repository ${userRootDir} has uncommitted changes. Make sure to commit all changes before ejecting.`
+        )
+      )
+    )
+  }
 }
 
 async function applyAction(action: Action, ejectable: Ejectable) {
