@@ -1,6 +1,6 @@
 {
   "name": "@brillout/eject",
-  "version": "0.0.3",
+  "version": "0.1.0",
   "scripts": {
     "// === Dev ===": "",
     "dev": "tsc --watch",

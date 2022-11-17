@@ -1,3 +1,13 @@
+# [0.1.0](https://github.com/brillout/eject/compare/v0.0.3...v0.1.0) (2022-11-17)
+
+
+### Bug Fixes
+
+* add success/error feedback ([c9e6408](https://github.com/brillout/eject/commit/c9e64081dcfdfbc3d1dbf5e2f11fc90e3ca050a4))
+* forbid ejecting if uncommitted changes ([5b2ed08](https://github.com/brillout/eject/commit/5b2ed08a63f3705d53258a358b406599ef6b664b))
+
+
+
 ## [0.0.3](https://github.com/brillout/eject/compare/v0.0.2...v0.0.3) (2022-11-17)
 
 
