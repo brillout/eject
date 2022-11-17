@@ -8,6 +8,7 @@ import pc from 'picocolors'
 
 const userRootDir = process.cwd()
 
+initPromiseRejectionHandler()
 main()
 
 // Regexes has false-positives which is alright.
@@ -64,6 +65,8 @@ async function main() {
   await abortIfGitUncommitedChanges()
 
   await eject(ejectable)
+
+  console.log(pc.green(pc.bold('Eject successful. See `$ git status`.')))
 }
 
 async function eject(ejectable: Ejectable) {
@@ -189,4 +192,11 @@ async function getEjectablesFromConfig(stemPackage: StemPackage): Promise<Ejecta
     actions,
     ejectName: name ?? null
   }))
+}
+
+function initPromiseRejectionHandler() {
+  process.on('unhandledRejection', function (err) {
+    console.error(err)
+    process.exit(1)
+  })
 }
