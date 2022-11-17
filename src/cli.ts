@@ -84,7 +84,7 @@ async function abortIfGitUncommitedChanges() {
     throw new Error(
       pc.red(
         pc.bold(
-          `Cannot eject: your Git repository ${userRootDir} has uncommitted changes. Make sure to commit all changes before ejecting.`
+          `Cannot eject. Your Git repository at ${userRootDir} has uncommitted changes. Make sure to commit all changes before ejecting.`
         )
       )
     )
