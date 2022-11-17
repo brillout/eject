@@ -1,3 +1,12 @@
+## [0.1.1](https://github.com/brillout/eject/compare/v0.1.0...v0.1.1) (2022-11-17)
+
+
+### Bug Fixes
+
+* handle no Stem package or ejectable found ([b714baf](https://github.com/brillout/eject/commit/b714bafc47917514a3b95de28b5ac85b2e9536e6))
+
+
+
 # [0.1.0](https://github.com/brillout/eject/compare/v0.0.3...v0.1.0) (2022-11-17)
 
 
