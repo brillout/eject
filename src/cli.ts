@@ -52,13 +52,13 @@ async function main() {
 
   const { stemPackageName, ejectName } = getCliArgs()
   if (!stemPackageName) {
-    showHelp(ejectables)
+    showHelp(stemPackages, ejectables)
     return
   }
 
   const ejectable = findMatch(ejectables, stemPackageName, ejectName)
   if (!ejectable) {
-    showHelp(ejectables)
+    showHelp(stemPackages, ejectables)
     return
   }
 
@@ -132,7 +132,7 @@ async function getUserFiles(): Promise<string[]> {
 }
 
 function removeStemPackage(stemPackageName: string) {
-  const pkgJsonPath = path.join(userRootDir, './package.json')
+  const pkgJsonPath = getPkgJsonPath()
   const pkgJson = require(pkgJsonPath)
   assert(Object.keys(pkgJson.dependencies!).includes(stemPackageName))
   let fileContent = String(fs.readFileSync(pkgJsonPath))
@@ -152,7 +152,17 @@ function findMatch(ejectables: Ejectable[], stemPackageName: string, ejectName: 
   return matches[0] ?? null
 }
 
-function showHelp(ejectables: Ejectable[]) {
+function showHelp(stemPackages: StemPackage[], ejectables: Ejectable[]) {
+  const pkgJsonPath = getPkgJsonPath()
+  if (stemPackages.length === 0) {
+    console.log(`No Stem package found in ${pkgJsonPath}#dependencies`)
+    return
+  }
+  if (ejectables.length === 0) {
+    console.log(`Stem packages found in ${pkgJsonPath}#dependencies but no ejectable found.`)
+    return
+  }
+  assert(ejectables.length > 0)
   const { projectName, projectVersion } = projectInfo
   console.log(`${projectName}@${projectVersion}`)
   console.log('')
@@ -199,4 +209,9 @@ function initPromiseRejectionHandler() {
     console.error(err)
     process.exit(1)
   })
+}
+
+function getPkgJsonPath(): string {
+  const pkgJsonPath = path.join(userRootDir, './package.json')
+  return pkgJsonPath
 }
