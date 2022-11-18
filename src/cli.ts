@@ -1,5 +1,5 @@
 import path from 'path'
-import { assert, isScriptFile, runCommand, toPosixPath } from './utils'
+import { assert, assertUsage, isScriptFile, runCommand, toPosixPath } from './utils'
 import { projectInfo } from './utils/projectInfo'
 import fse from 'fs-extra'
 import fs from 'fs'
@@ -194,7 +194,8 @@ async function findEjectables(stemPackages: StemPackage[]): Promise<Ejectable[]>
 async function getEjectablesFromConfig(stemPackage: StemPackage): Promise<Ejectable[]> {
   const { stemPackageName, stemPackageRootDir, loadModule } = stemPackage
   const moduleExports = await loadModule('eject.config.js')
-  // TODO: assert `ejectConfig`
+  assertUsage(moduleExports, `${stemPackageName} should define package.json#exports["./eject.config.js"]`)
+  // TODO: assert `ejectConfig` object
   const ejectConfig: EjectConfig = moduleExports.default as EjectConfig
   return ejectConfig.ejectables.map(({ actions, name }) => ({
     stemPackageName,

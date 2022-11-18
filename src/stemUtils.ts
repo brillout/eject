@@ -4,14 +4,14 @@ export { getStemPackages }
 export type { StemPackage }
 
 import path from 'path'
-import { assert, assertUsage, assertWarning, toPosixPath, assertPosixPath } from './utils'
+import { assert, assertUsage, assertWarning, toPosixPath, assertPosixPath, isObject } from './utils'
 import { import_ } from '@brillout/import'
 import fs from 'fs'
 
 type StemPackage = {
   stemPackageName: string
   stemPackageRootDir: string
-  loadModule: (moduleId: string) => Promise<Record<string, unknown>>
+  loadModule: (moduleId: string) => Promise<null | Record<string, unknown>>
 }
 
 async function getStemPackages(currentDir: string): Promise<StemPackage[]> {
@@ -24,23 +24,34 @@ async function getStemPackages(currentDir: string): Promise<StemPackage[]> {
   const stemPackages = await Promise.all(
     stemPkgNames.map((stemPackageName) => {
       assert(stemPackageName.includes('stem-'))
-      const resolveModulePath = (moduleId: string): string => {
+      const resolveModulePath = (moduleId: string): null | string => {
         const importPath = `${stemPackageName}/${moduleId}`
-        const modulePath = require.resolve(importPath, { paths: [userRootDir] })
-        // assertUsage(false, `Make sure to (properly) set \`${stemPackageName}#exports['./${moduleId}']\``)
-        // if ((err as any).code === 'ERR_MODULE_NOT_FOUND') {
-        //   assertUsage(false, `Couldn't find ${importPath}`)
-        // }
-        return modulePath
+        try {
+          const modulePath = require.resolve(importPath, { paths: [userRootDir] })
+          return modulePath
+        } catch (err) {
+          // - ERR_PACKAGE_PATH_NOT_EXPORTED => package.json#exports[importPath] is missing
+          // - We assert that Stem pacakges always define package.json#exports down below
+          if ((err as any).code === 'ERR_PACKAGE_PATH_NOT_EXPORTED') {
+            return null
+          }
+          // All other errors such as ERR_MODULE_NOT_FOUND should be thrown
+          throw err
+        }
       }
-      const loadModule = async (moduleId: string): Promise<Record<string, unknown>> => {
+      const loadModule = async (moduleId: string): Promise<null | Record<string, unknown>> => {
         const modulePath = resolveModulePath(moduleId)
+        if (modulePath === null) return null
         const moduleExports: Record<string, unknown> = moduleId.endsWith('.json')
           ? require(modulePath)
           : await import_(modulePath)
         return moduleExports
       }
       const stemPackageJsonPath = resolveModulePath('package.json')
+      assertUsage(
+        stemPackageJsonPath && isObject(require(stemPackageJsonPath).exports),
+        `${stemPackageName} should define package.json#exports["./package.json"]`
+      )
       const stemPackageRootDir = toPosixPath(path.dirname(stemPackageJsonPath))
       return {
         stemPackageName,
