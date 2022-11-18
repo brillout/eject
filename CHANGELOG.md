@@ -1,3 +1,12 @@
+## [0.1.2](https://github.com/brillout/eject/compare/v0.1.1...v0.1.2) (2022-11-18)
+
+
+### Bug Fixes
+
+* improve Stem resolver ([d14f769](https://github.com/brillout/eject/commit/d14f769c258f4a1601966cdb94b0a7d9fbad3c5f))
+
+
+
 ## [0.1.1](https://github.com/brillout/eject/compare/v0.1.0...v0.1.1) (2022-11-17)
 
 
